@@ -1,4 +1,5 @@
 /frostrelay
 /frostrelay-*
-/archive/
+/archive/*
+!/archive/.gitkeep
 /.env
