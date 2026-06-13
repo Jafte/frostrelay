@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>frostrelay</title>
+<style>
+  :root { color-scheme: dark; }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: radial-gradient(ellipse at top, #16202e 0%, #0b0f15 70%);
+    color: #dfe7f1; font-family: -apple-system, "Segoe UI", Roboto, sans-serif;
+  }
+  .card {
+    width: min(420px, 92vw); padding: 40px 36px; text-align: center;
+    background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px; backdrop-filter: blur(6px);
+  }
+  h1 { margin: 0 0 6px; font-size: 1.5rem; font-weight: 600; letter-spacing: .03em; }
+  .status { display: inline-flex; align-items: center; gap: 8px; font-size: .9rem; color: #8b97a7; }
+  .dot { width: 9px; height: 9px; border-radius: 50%; background: #4a5568; transition: background .3s; }
+  .live .dot { background: #e4504f; box-shadow: 0 0 8px #e4504f; animation: pulse 1.6s infinite; }
+  @keyframes pulse { 50% { opacity: .55; } }
+  .live .status { color: #e8aeae; }
+  button {
+    margin: 28px auto 0; display: flex; align-items: center; justify-content: center;
+    width: 84px; height: 84px; border-radius: 50%; border: none; cursor: pointer;
+    background: #2b6cb0; color: #fff; transition: background .2s, transform .1s, opacity .2s;
+  }
+  button:hover:enabled { background: #3182ce; transform: scale(1.04); }
+  button:disabled { background: #2d3748; opacity: .5; cursor: default; }
+  button svg { width: 34px; height: 34px; fill: currentColor; }
+  .song { margin-top: 22px; min-height: 1.3em; font-size: .95rem; color: #a8b4c4;
+          overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .listeners { margin-top: 8px; font-size: .8rem; color: #5e6a7a; }
+  input[type=range] { width: 70%; margin-top: 24px; accent-color: #3182ce; }
+</style>
+</head>
+<body>
+<div class="card" id="card">
+  <h1 id="name">frostrelay</h1>
+  <div class="status"><span class="dot"></span><span id="statusText">не в эфире</span></div>
+  <button id="playBtn" disabled aria-label="Воспроизведение">
+    <svg id="iconPlay" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+    <svg id="iconStop" viewBox="0 0 24 24" style="display:none"><path d="M6 6h12v12H6z"/></svg>
+  </button>
+  <div class="song" id="song"></div>
+  <div class="listeners" id="listeners"></div>
+  <input type="range" id="volume" min="0" max="1" step="0.01" value="1" aria-label="Громкость">
+</div>
+<audio id="player"></audio>
+<script>
+  const card = document.getElementById('card');
+  const btn = document.getElementById('playBtn');
+  const player = document.getElementById('player');
+  const iconPlay = document.getElementById('iconPlay');
+  const iconStop = document.getElementById('iconStop');
+  let mount = '/stream';
+  let live = false;
+
+  function setPlayingUI(playing) {
+    iconPlay.style.display = playing ? 'none' : '';
+    iconStop.style.display = playing ? '' : 'none';
+  }
+
+  function stop() {
+    player.pause();
+    player.removeAttribute('src');
+    player.load();
+    setPlayingUI(false);
+  }
+
+  btn.addEventListener('click', () => {
+    if (!player.paused) { stop(); return; }
+    player.src = mount + '?_=' + Date.now(); // не даём браузеру взять поток из кэша
+    player.play().catch(() => stop());
+  });
+  player.addEventListener('playing', () => setPlayingUI(true));
+  player.addEventListener('pause', () => setPlayingUI(false));
+  player.addEventListener('error', () => stop());
+
+  document.getElementById('volume').addEventListener('input', e => {
+    player.volume = e.target.value;
+  });
+
+  async function poll() {
+    try {
+      const r = await fetch('/status.json', {cache: 'no-store'});
+      const st = await r.json();
+      mount = st.mount;
+      live = st.live;
+      document.getElementById('name').textContent = st.name;
+      document.title = st.name;
+      document.getElementById('statusText').textContent = live ? 'в эфире' : 'не в эфире';
+      document.getElementById('song').textContent = st.song || '';
+      document.getElementById('listeners').textContent =
+        live && st.listeners ? 'слушателей: ' + st.listeners : '';
+      card.classList.toggle('live', live);
+      btn.disabled = !live;
+      if (!live && !player.paused) stop();
+    } catch (e) { /* сервер недоступен — оставляем текущее состояние */ }
+  }
+  poll();
+  setInterval(poll, 5000);
+</script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+services:
+  frostrelay:
+    build: .
+    container_name: frostrelay
+    restart: unless-stopped
+    environment:
+      FROSTRELAY_PASSWORD: ${FROSTRELAY_PASSWORD:?задайте пароль в .env}
+      TZ: ${TZ:-Europe/Moscow}
+    # имя потока (icy-name); название на странице правится в index.html
+    command: ["-name", "frostrelay"]
+    volumes:
+      - ./archive:/archive
+    networks:
+      - web
+    ports:
+      # прямой вход для BUTT (источник шлёт поток мимо Caddy, без TLS).
+      # Слушатели ходят через Caddy; если и BUTT пустите через него —
+      # эту секцию можно убрать совсем.
+      - "8000:8000"
+
+networks:
+  web:
+    external: true

@@ -1,0 +1,8 @@
+# Фрагмент для Caddyfile на сервере (Caddy сидит в той же docker-сети `web`
+# и резолвит контейнер по имени). Сертификат Let's Encrypt Caddy получит сам.
+radio.example.com {
+	reverse_proxy frostrelay:8000 {
+		# не буферизовать ответ — поток должен уходить слушателю сразу
+		flush_interval -1
+	}
+}
